@@ -1,12 +1,12 @@
 -- Projeto de Extensao em Banco de Dados - ONG Patas na Rua
 -- Aluno: Isaac Azevedo Werneck - Matricula: 2024101179
--- SGBD: MySQL 8.0
+-- SGBD: MySQL 8.0.16 ou superior; validado em MySQL 8.4.8
 
-DROP DATABASE IF EXISTS patas_na_rua;
 CREATE DATABASE patas_na_rua
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_0900_ai_ci;
 USE patas_na_rua;
+SET default_storage_engine = InnoDB;
 
 -- 1. MODELO FISICO
 
@@ -21,6 +21,7 @@ CREATE TABLE raca (
     id_especie INT NOT NULL,
     nome VARCHAR(80) NOT NULL,
     descricao VARCHAR(255),
+    CONSTRAINT uq_raca_id_especie UNIQUE (id_raca, id_especie),
     CONSTRAINT uq_raca_especie_nome UNIQUE (id_especie, nome),
     CONSTRAINT fk_raca_especie
         FOREIGN KEY (id_especie) REFERENCES especie (id_especie)
@@ -62,7 +63,8 @@ CREATE TABLE animal (
     CONSTRAINT fk_animal_especie
         FOREIGN KEY (id_especie) REFERENCES especie (id_especie),
     CONSTRAINT fk_animal_raca
-        FOREIGN KEY (id_raca) REFERENCES raca (id_raca),
+        FOREIGN KEY (id_raca, id_especie)
+        REFERENCES raca (id_raca, id_especie),
     CONSTRAINT fk_animal_voluntario
         FOREIGN KEY (id_voluntario_responsavel)
         REFERENCES voluntario (id_voluntario)
@@ -121,12 +123,23 @@ CREATE TABLE adocao (
     data_adocao DATE,
     situacao VARCHAR(12) NOT NULL DEFAULT 'EM_ANALISE',
     observacoes VARCHAR(500),
+    animal_processo_ativo INT GENERATED ALWAYS AS (
+        CASE WHEN situacao IN ('EM_ANALISE', 'APROVADA')
+             THEN id_animal ELSE NULL END
+    ) STORED,
+    CONSTRAINT uq_adocao_ativa UNIQUE (animal_processo_ativo),
+    CONSTRAINT ck_adocao_conclusao CHECK (
+        (situacao = 'CONCLUIDA' AND data_adocao IS NOT NULL) OR
+        (situacao <> 'CONCLUIDA' AND data_adocao IS NULL)
+    ),
     CONSTRAINT ck_adocao_situacao CHECK (situacao IN (
         'EM_ANALISE', 'APROVADA', 'RECUSADA', 'CANCELADA', 'CONCLUIDA'
     )),
     CONSTRAINT ck_adocao_datas CHECK (
         (data_analise IS NULL OR data_analise >= data_solicitacao)
         AND (data_adocao IS NULL OR data_adocao >= data_solicitacao)
+        AND (data_adocao IS NULL OR data_analise IS NULL
+             OR data_adocao >= data_analise)
     ),
     CONSTRAINT fk_adocao_animal
         FOREIGN KEY (id_animal) REFERENCES animal (id_animal),
@@ -159,9 +172,10 @@ CREATE TABLE doacao (
     CONSTRAINT ck_doacao_tipo CHECK (tipo IN ('FINANCEIRA', 'MATERIAL')),
     CONSTRAINT ck_doacao_situacao CHECK (situacao IN ('RECEBIDA', 'CANCELADA')),
     CONSTRAINT ck_doacao_conteudo CHECK (
-        (tipo = 'FINANCEIRA' AND valor > 0)
+        (tipo = 'FINANCEIRA' AND valor IS NOT NULL AND valor > 0)
         OR
-        (tipo = 'MATERIAL' AND quantidade > 0 AND unidade IS NOT NULL)
+        (tipo = 'MATERIAL' AND quantidade IS NOT NULL AND quantidade > 0
+            AND unidade IS NOT NULL AND TRIM(unidade) <> '')
     ),
     CONSTRAINT fk_doacao_doador
         FOREIGN KEY (id_doador) REFERENCES doador (id_doador)
@@ -171,118 +185,640 @@ CREATE TABLE doacao (
 -- Todos os dados pessoais abaixo sao ficticios.
 
 INSERT INTO especie (id_especie, nome, descricao) VALUES
-    (1, 'Cao', 'Caninos domesticos'),
-    (2, 'Gato', 'Felinos domesticos'),
-    (3, 'Coelho', 'Coelhos domesticos'),
-    (4, 'Ave', 'Aves domesticas resgatadas'),
-    (5, 'Outro', 'Outros pequenos animais domesticos');
+    (1,
+        'Cao',
+        'Caninos domesticos'),
+    (2,
+        'Gato',
+        'Felinos domesticos'),
+    (3,
+        'Coelho',
+        'Coelhos domesticos'),
+    (4,
+        'Calopsita',
+        'Calopsitas domesticas resgatadas'),
+    (5,
+        'Hamster',
+        'Hamsters domesticos');
 
 INSERT INTO raca (id_raca, id_especie, nome, descricao) VALUES
-    (1, 1, 'SRD Canino', 'Sem raca definida'),
-    (2, 1, 'Labrador Retriever', 'Cao de porte medio ou grande'),
-    (3, 1, 'Poodle', 'Cao de porte pequeno ou medio'),
-    (4, 2, 'SRD Felino', 'Sem raca definida'),
-    (5, 2, 'Siames', 'Felino de pelagem clara e extremidades escuras'),
-    (6, 2, 'Persa', 'Felino de pelagem longa'),
-    (7, 3, 'Mini Lop', 'Coelho de orelhas caidas'),
-    (8, 3, 'SRD Coelho', 'Coelho sem raca definida'),
-    (9, 4, 'Calopsita', 'Ave domestica de pequeno porte'),
-    (10, 5, 'Nao identificada', 'Classificacao ainda nao definida');
+    (1,
+        1,
+        'SRD Canino',
+        'Sem raca definida'),
+    (2,
+        1,
+        'Labrador Retriever',
+        'Cao de porte medio ou grande'),
+    (3,
+        1,
+        'Poodle',
+        'Cao de porte pequeno ou medio'),
+    (4,
+        2,
+        'SRD Felino',
+        'Sem raca definida'),
+    (5,
+        2,
+        'Siames',
+        'Felino de pelagem clara e extremidades escuras'),
+    (6,
+        2,
+        'Persa',
+        'Felino de pelagem longa'),
+    (7,
+        3,
+        'Mini Lop',
+        'Coelho de orelhas caidas'),
+    (8,
+        3,
+        'SRD Coelho',
+        'Coelho sem raca definida'),
+    (9,
+        4,
+        'Sem variedade definida',
+        'Variedade de calopsita nao identificada'),
+    (10,
+        5,
+        'Nao identificada',
+        'Classificacao ainda nao definida');
 
 INSERT INTO voluntario (
     id_voluntario, nome, cpf, telefone, email, funcao, data_entrada, situacao
 ) VALUES
-    (1, 'Ana Lima', '11111111101', '(21) 99901-1001', 'ana@exemplo.org', 'Resgate', '2025-02-10', 'ATIVO'),
-    (2, 'Bruno Alves', '11111111102', '(21) 99901-1002', 'bruno@exemplo.org', 'Transporte', '2025-03-15', 'ATIVO'),
-    (3, 'Carla Mendes', '11111111103', '(21) 99901-1003', 'carla@exemplo.org', 'Alimentacao', '2025-05-01', 'ATIVO'),
-    (4, 'Diego Ramos', '11111111104', '(21) 99901-1004', 'diego@exemplo.org', 'Divulgacao', '2025-07-20', 'ATIVO'),
-    (5, 'Elisa Castro', '11111111105', '(21) 99901-1005', 'elisa@exemplo.org', 'Apoio em eventos', '2025-09-12', 'ATIVO');
+    (1,
+        'Ana Lima',
+        '11111111101',
+        '(21) 99901-1001',
+        'ana@exemplo.org',
+        'Resgate',
+        '2025-02-10',
+        'ATIVO'),
+    (2,
+        'Bruno Alves',
+        '11111111102',
+        '(21) 99901-1002',
+        'bruno@exemplo.org',
+        'Transporte',
+        '2025-03-15',
+        'ATIVO'),
+    (3,
+        'Carla Mendes',
+        '11111111103',
+        '(21) 99901-1003',
+        'carla@exemplo.org',
+        'Alimentacao',
+        '2025-05-01',
+        'ATIVO'),
+    (4,
+        'Diego Ramos',
+        '11111111104',
+        '(21) 99901-1004',
+        'diego@exemplo.org',
+        'Divulgacao',
+        '2025-07-20',
+        'ATIVO'),
+    (5,
+        'Elisa Castro',
+        '11111111105',
+        '(21) 99901-1005',
+        'elisa@exemplo.org',
+        'Apoio em eventos',
+        '2025-09-12',
+        'ATIVO');
 
 INSERT INTO animal (
     id_animal, id_especie, id_raca, id_voluntario_responsavel, nome, sexo,
     data_nascimento_estimada, porte, cor_pelagem, data_resgate,
     local_resgate, situacao, observacoes
 ) VALUES
-    (1, 1, 1, 1, 'Lua', 'F', '2023-04-01', 'MEDIO', 'Caramelo', '2026-01-12', 'Praca Central', 'DISPONIVEL_ADOCAO', 'Vacinada e sociavel'),
-    (2, 1, 2, 2, 'Thor', 'M', '2021-08-15', 'GRANDE', 'Amarelo', '2026-02-03', 'Rodovia RJ-001', 'EM_TRATAMENTO', 'Em recuperacao de fratura'),
-    (3, 2, 4, 3, 'Mel', 'F', '2024-02-10', 'PEQUENO', 'Tigrada', '2026-02-20', 'Mercado Municipal', 'ADOTADO', 'Adocao concluida em maio'),
-    (4, 2, 5, 4, 'Nina', 'F', '2022-11-05', 'PEQUENO', 'Creme', '2026-03-08', 'Rua das Flores', 'EM_PROCESSO_ADOCAO', 'Processo em analise'),
-    (5, 1, 3, 5, 'Bob', 'M', '2020-06-30', 'PEQUENO', 'Branco', '2026-03-17', 'Terminal Rodoviario', 'EM_PROCESSO_ADOCAO', 'Candidato aprovado'),
-    (6, 2, 6, 1, 'Amora', 'F', '2023-09-12', 'PEQUENO', 'Cinza', '2026-04-02', 'Parque Norte', 'DISPONIVEL_ADOCAO', 'Necessita escovacao frequente'),
-    (7, 3, 7, 2, 'Pipoca', 'M', '2025-01-10', 'PEQUENO', 'Branco e marrom', '2026-04-18', 'Condominio Primavera', 'DISPONIVEL_ADOCAO', 'Animal docil'),
-    (8, 4, 9, 3, 'Sol', 'F', '2024-07-01', 'PEQUENO', 'Amarela e cinza', '2026-05-01', 'Bairro das Palmeiras', 'EM_TRATAMENTO', 'Asa em recuperacao'),
-    (9, 1, 1, 4, 'Chico', 'M', '2022-03-14', 'MEDIO', 'Preto', '2026-05-06', 'Avenida Brasil', 'ADOTADO', 'Adocao concluida em agosto'),
-    (10, 2, 4, 5, 'Frida', 'F', '2025-02-20', 'PEQUENO', 'Preta e branca', '2026-05-22', 'Escola Municipal Horizonte', 'DISPONIVEL_ADOCAO', 'Saudavel');
+    (1,
+        1,
+        1,
+        1,
+        'Lua',
+        'F',
+        '2023-04-01',
+        'MEDIO',
+        'Caramelo',
+        '2026-01-12',
+        'Praca Central',
+        'DISPONIVEL_ADOCAO',
+        'Vacinada e sociavel'),
+    (2,
+        1,
+        2,
+        2,
+        'Thor',
+        'M',
+        '2021-08-15',
+        'GRANDE',
+        'Amarelo',
+        '2026-02-03',
+        'Rodovia RJ-001',
+        'EM_TRATAMENTO',
+        'Em recuperacao de fratura'),
+    (3,
+        2,
+        4,
+        3,
+        'Mel',
+        'F',
+        '2024-02-10',
+        'PEQUENO',
+        'Tigrada',
+        '2026-02-20',
+        'Mercado Municipal',
+        'ADOTADO',
+        'Adocao concluida em maio'),
+    (4,
+        2,
+        5,
+        4,
+        'Nina',
+        'F',
+        '2022-11-05',
+        'PEQUENO',
+        'Creme',
+        '2026-03-08',
+        'Rua das Flores',
+        'EM_PROCESSO_ADOCAO',
+        'Processo em analise'),
+    (5,
+        1,
+        3,
+        5,
+        'Bob',
+        'M',
+        '2020-06-30',
+        'PEQUENO',
+        'Branco',
+        '2026-03-17',
+        'Terminal Rodoviario',
+        'EM_PROCESSO_ADOCAO',
+        'Candidato aprovado'),
+    (6,
+        2,
+        6,
+        1,
+        'Amora',
+        'F',
+        '2023-09-12',
+        'PEQUENO',
+        'Cinza',
+        '2026-04-02',
+        'Parque Norte',
+        'DISPONIVEL_ADOCAO',
+        'Necessita escovacao frequente'),
+    (7,
+        3,
+        7,
+        2,
+        'Pipoca',
+        'M',
+        '2025-01-10',
+        'PEQUENO',
+        'Branco e marrom',
+        '2026-04-18',
+        'Condominio Primavera',
+        'DISPONIVEL_ADOCAO',
+        'Animal docil'),
+    (8,
+        4,
+        9,
+        3,
+        'Sol',
+        'F',
+        '2024-07-01',
+        'PEQUENO',
+        'Amarela e cinza',
+        '2026-05-01',
+        'Bairro das Palmeiras',
+        'EM_TRATAMENTO',
+        'Asa em recuperacao'),
+    (9,
+        1,
+        1,
+        4,
+        'Chico',
+        'M',
+        '2022-03-14',
+        'MEDIO',
+        'Preto',
+        '2026-05-06',
+        'Avenida Brasil',
+        'ADOTADO',
+        'Adocao concluida em agosto'),
+    (10,
+        2,
+        4,
+        5,
+        'Frida',
+        'F',
+        '2025-02-20',
+        'PEQUENO',
+        'Preta e branca',
+        '2026-05-22',
+        'Escola Municipal Horizonte',
+        'DISPONIVEL_ADOCAO',
+        'Saudavel');
 
 INSERT INTO veterinario (
     id_veterinario, nome, crmv, telefone, email, clinica
 ) VALUES
-    (1, 'Mariana Costa', 'CRMV-RJ-10001', '(21) 3333-1001', 'mariana@vetexemplo.org', 'Clinica Vida Animal'),
-    (2, 'Rafael Nunes', 'CRMV-RJ-10002', '(21) 3333-1002', 'rafael@vetexemplo.org', 'Hospital Vet Popular'),
-    (3, 'Juliana Reis', 'CRMV-RJ-10003', '(21) 3333-1003', 'juliana@vetexemplo.org', 'Clinica Bicho Feliz'),
-    (4, 'Pedro Martins', 'CRMV-RJ-10004', '(21) 3333-1004', 'pedro@vetexemplo.org', 'Centro Veterinario Sul'),
-    (5, 'Larissa Gomes', 'CRMV-RJ-10005', '(21) 3333-1005', 'larissa@vetexemplo.org', 'Atendimento Voluntario');
+    (1,
+        'Mariana Costa',
+        'CRMV-RJ-10001',
+        '(21) 3333-1001',
+        'mariana@vetexemplo.org',
+        'Clinica Vida Animal'),
+    (2,
+        'Rafael Nunes',
+        'CRMV-RJ-10002',
+        '(21) 3333-1002',
+        'rafael@vetexemplo.org',
+        'Hospital Vet Popular'),
+    (3,
+        'Juliana Reis',
+        'CRMV-RJ-10003',
+        '(21) 3333-1003',
+        'juliana@vetexemplo.org',
+        'Clinica Bicho Feliz'),
+    (4,
+        'Pedro Martins',
+        'CRMV-RJ-10004',
+        '(21) 3333-1004',
+        'pedro@vetexemplo.org',
+        'Centro Veterinario Sul'),
+    (5,
+        'Larissa Gomes',
+        'CRMV-RJ-10005',
+        '(21) 3333-1005',
+        'larissa@vetexemplo.org',
+        'Atendimento Voluntario');
 
 INSERT INTO tratamento (
     id_tratamento, id_animal, id_veterinario, data_tratamento, tipo,
     diagnostico, descricao, valor, data_retorno, situacao
 ) VALUES
-    (1, 1, 1, '2026-01-13', 'Consulta', 'Desidratacao leve', 'Avaliacao geral e hidratacao', 120.00, '2026-01-20', 'REALIZADO'),
-    (2, 1, 1, '2026-01-20', 'Vacinacao', 'Animal saudavel', 'Aplicacao de vacina multipla', 85.00, NULL, 'REALIZADO'),
-    (3, 2, 2, '2026-02-04', 'Radiografia', 'Fratura na pata traseira', 'Exame e imobilizacao', 450.00, '2026-02-18', 'REALIZADO'),
-    (4, 2, 2, '2026-02-18', 'Retorno', 'Boa consolidacao ossea', 'Troca de imobilizacao', 180.00, '2026-03-04', 'REALIZADO'),
-    (5, 3, 3, '2026-02-21', 'Castracao', 'Apta para procedimento', 'Castracao e medicacao', 320.00, '2026-02-28', 'REALIZADO'),
-    (6, 4, 3, '2026-03-09', 'Exame', 'Anemia leve', 'Hemograma e suplementacao', 210.00, '2026-03-23', 'REALIZADO'),
-    (7, 5, 4, '2026-03-18', 'Odontologia', 'Tartaro moderado', 'Limpeza dentaria', 260.00, NULL, 'REALIZADO'),
-    (8, 6, 1, '2026-04-03', 'Consulta', 'Dermatite', 'Tratamento topico por dez dias', 150.00, '2026-04-13', 'REALIZADO'),
-    (9, 7, 5, '2026-04-19', 'Consulta', 'Animal saudavel', 'Avaliacao e orientacao alimentar', 90.00, NULL, 'REALIZADO'),
-    (10, 8, 5, '2026-05-02', 'Ortopedia', 'Lesao na asa', 'Imobilizacao e analgesico', 275.00, '2026-05-16', 'REALIZADO'),
-    (11, 9, 4, '2026-05-07', 'Vacinacao', 'Animal saudavel', 'Reforco anual', 80.00, NULL, 'REALIZADO'),
-    (12, 10, 3, '2026-05-23', 'Castracao', 'Apta para procedimento', 'Castracao e medicacao', 310.00, '2026-05-30', 'REALIZADO');
+    (1,
+        1,
+        1,
+        '2026-01-13',
+        'Consulta',
+        'Desidratacao leve',
+        'Avaliacao geral e hidratacao',
+        120.00,
+        '2026-01-20',
+        'REALIZADO'),
+    (2,
+        1,
+        1,
+        '2026-01-20',
+        'Vacinacao',
+        'Animal saudavel',
+        'Aplicacao de vacina multipla',
+        85.00,
+        NULL,
+        'REALIZADO'),
+    (3,
+        2,
+        2,
+        '2026-02-04',
+        'Radiografia',
+        'Fratura na pata traseira',
+        'Exame e imobilizacao',
+        450.00,
+        '2026-02-18',
+        'REALIZADO'),
+    (4,
+        2,
+        2,
+        '2026-02-18',
+        'Retorno',
+        'Boa consolidacao ossea',
+        'Troca de imobilizacao',
+        180.00,
+        '2026-03-04',
+        'REALIZADO'),
+    (5,
+        3,
+        3,
+        '2026-02-21',
+        'Castracao',
+        'Apta para procedimento',
+        'Castracao e medicacao',
+        320.00,
+        '2026-02-28',
+        'REALIZADO'),
+    (6,
+        4,
+        3,
+        '2026-03-09',
+        'Exame',
+        'Anemia leve',
+        'Hemograma e suplementacao',
+        210.00,
+        '2026-03-23',
+        'REALIZADO'),
+    (7,
+        5,
+        4,
+        '2026-03-18',
+        'Odontologia',
+        'Tartaro moderado',
+        'Limpeza dentaria',
+        260.00,
+        NULL,
+        'REALIZADO'),
+    (8,
+        6,
+        1,
+        '2026-04-03',
+        'Consulta',
+        'Dermatite',
+        'Tratamento topico por dez dias',
+        150.00,
+        '2026-04-13',
+        'REALIZADO'),
+    (9,
+        7,
+        5,
+        '2026-04-19',
+        'Consulta',
+        'Animal saudavel',
+        'Avaliacao e orientacao alimentar',
+        90.00,
+        NULL,
+        'REALIZADO'),
+    (10,
+        8,
+        5,
+        '2026-05-02',
+        'Ortopedia',
+        'Lesao na asa',
+        'Imobilizacao e analgesico',
+        275.00,
+        '2026-05-16',
+        'REALIZADO'),
+    (11,
+        9,
+        4,
+        '2026-05-07',
+        'Vacinacao',
+        'Animal saudavel',
+        'Reforco anual',
+        80.00,
+        NULL,
+        'REALIZADO'),
+    (12,
+        10,
+        3,
+        '2026-05-23',
+        'Castracao',
+        'Apta para procedimento',
+        'Castracao e medicacao',
+        310.00,
+        '2026-05-30',
+        'REALIZADO');
 
 INSERT INTO adotante (
     id_adotante, nome, cpf, data_nascimento, telefone, email,
     endereco, cidade, data_cadastro, situacao
 ) VALUES
-    (1, 'Fernanda Souza', '22222222201', '1990-04-12', '(21) 98801-2001', 'fernanda@exemplo.com', 'Rua A, 10', 'Rio de Janeiro', '2026-04-15', 'ATIVO'),
-    (2, 'Gustavo Rocha', '22222222202', '1987-09-21', '(21) 98801-2002', 'gustavo@exemplo.com', 'Rua B, 20', 'Niteroi', '2026-05-05', 'ATIVO'),
-    (3, 'Helena Duarte', '22222222203', '1995-01-30', '(21) 98801-2003', 'helena@exemplo.com', 'Rua C, 30', 'Rio de Janeiro', '2026-06-12', 'ATIVO'),
-    (4, 'Igor Moreira', '22222222204', '1992-12-03', '(21) 98801-2004', 'igor@exemplo.com', 'Rua D, 40', 'Duque de Caxias', '2026-06-20', 'ATIVO'),
-    (5, 'Joana Freitas', '22222222205', '1985-07-18', '(21) 98801-2005', 'joana@exemplo.com', 'Rua E, 50', 'Sao Goncalo', '2026-07-02', 'ATIVO');
+    (1,
+        'Fernanda Souza',
+        '22222222201',
+        '1990-04-12',
+        '(21) 98801-2001',
+        'fernanda@exemplo.com',
+        'Rua A, 10',
+        'Rio de Janeiro',
+        '2026-04-15',
+        'ATIVO'),
+    (2,
+        'Gustavo Rocha',
+        '22222222202',
+        '1987-09-21',
+        '(21) 98801-2002',
+        'gustavo@exemplo.com',
+        'Rua B, 20',
+        'Niteroi',
+        '2026-05-05',
+        'ATIVO'),
+    (3,
+        'Helena Duarte',
+        '22222222203',
+        '1995-01-30',
+        '(21) 98801-2003',
+        'helena@exemplo.com',
+        'Rua C, 30',
+        'Rio de Janeiro',
+        '2026-06-12',
+        'ATIVO'),
+    (4,
+        'Igor Moreira',
+        '22222222204',
+        '1992-12-03',
+        '(21) 98801-2004',
+        'igor@exemplo.com',
+        'Rua D, 40',
+        'Duque de Caxias',
+        '2026-06-20',
+        'ATIVO'),
+    (5,
+        'Joana Freitas',
+        '22222222205',
+        '1985-07-18',
+        '(21) 98801-2005',
+        'joana@exemplo.com',
+        'Rua E, 50',
+        'Sao Goncalo',
+        '2026-07-02',
+        'ATIVO');
 
 INSERT INTO adocao (
     id_adocao, id_animal, id_adotante, data_solicitacao, data_analise,
     data_adocao, situacao, observacoes
 ) VALUES
-    (1, 3, 1, '2026-04-16', '2026-04-25', '2026-05-02', 'CONCLUIDA', 'Visita domiciliar aprovada'),
-    (2, 4, 2, '2026-06-01', NULL, NULL, 'EM_ANALISE', 'Entrevista agendada'),
-    (3, 9, 3, '2026-07-10', '2026-07-20', '2026-08-01', 'CONCLUIDA', 'Adaptacao acompanhada por voluntario'),
-    (4, 1, 4, '2026-06-25', '2026-06-30', NULL, 'CANCELADA', 'Candidato desistiu do processo'),
-    (5, 5, 5, '2026-07-05', '2026-07-15', NULL, 'APROVADA', 'Aguardando assinatura do termo'),
-    (6, 10, 2, '2026-07-22', '2026-07-28', NULL, 'RECUSADA', 'Residencia sem protecao nas janelas');
+    (1,
+        3,
+        1,
+        '2026-04-16',
+        '2026-04-25',
+        '2026-05-02',
+        'CONCLUIDA',
+        'Visita domiciliar aprovada'),
+    (2,
+        4,
+        2,
+        '2026-06-01',
+        NULL,
+        NULL,
+        'EM_ANALISE',
+        'Entrevista agendada'),
+    (3,
+        9,
+        3,
+        '2026-07-10',
+        '2026-07-20',
+        '2026-08-01',
+        'CONCLUIDA',
+        'Adaptacao acompanhada por voluntario'),
+    (4,
+        1,
+        4,
+        '2026-06-25',
+        '2026-06-30',
+        NULL,
+        'CANCELADA',
+        'Candidato desistiu do processo'),
+    (5,
+        5,
+        5,
+        '2026-07-05',
+        '2026-07-15',
+        NULL,
+        'APROVADA',
+        'Aguardando assinatura do termo'),
+    (6,
+        10,
+        2,
+        '2026-07-22',
+        '2026-07-28',
+        NULL,
+        'RECUSADA',
+        'Residencia sem protecao nas janelas');
 
 INSERT INTO doador (
     id_doador, nome, tipo_pessoa, documento, telefone, email, cidade, data_cadastro
 ) VALUES
-    (1, 'Kelly Batista', 'PF', '33333333301', '(21) 97701-3001', 'kelly@exemplo.com', 'Rio de Janeiro', '2026-01-05'),
-    (2, 'Lucas Teixeira', 'PF', '33333333302', '(21) 97701-3002', 'lucas@exemplo.com', 'Niteroi', '2026-01-18'),
-    (3, 'Mercado Bom Preco Ltda', 'PJ', '33333333000103', '(21) 3777-3003', 'contato@bompreco.exemplo', 'Rio de Janeiro', '2026-02-01'),
-    (4, 'Farmacia Animal Ltda', 'PJ', '33333333000104', '(21) 3777-3004', 'doacoes@farmaciaanimal.exemplo', 'Sao Goncalo', '2026-02-15'),
-    (5, 'Marcos Vieira', 'PF', '33333333305', '(21) 97701-3005', 'marcos@exemplo.com', 'Duque de Caxias', '2026-03-01');
+    (1,
+        'Kelly Batista',
+        'PF',
+        '33333333301',
+        '(21) 97701-3001',
+        'kelly@exemplo.com',
+        'Rio de Janeiro',
+        '2026-01-05'),
+    (2,
+        'Lucas Teixeira',
+        'PF',
+        '33333333302',
+        '(21) 97701-3002',
+        'lucas@exemplo.com',
+        'Niteroi',
+        '2026-01-18'),
+    (3,
+        'Mercado Bom Preco Ltda',
+        'PJ',
+        '33333333000103',
+        '(21) 3777-3003',
+        'contato@bompreco.exemplo',
+        'Rio de Janeiro',
+        '2026-02-01'),
+    (4,
+        'Farmacia Animal Ltda',
+        'PJ',
+        '33333333000104',
+        '(21) 3777-3004',
+        'doacoes@farmaciaanimal.exemplo',
+        'Sao Goncalo',
+        '2026-02-15'),
+    (5,
+        'Marcos Vieira',
+        'PF',
+        '33333333305',
+        '(21) 97701-3005',
+        'marcos@exemplo.com',
+        'Duque de Caxias',
+        '2026-03-01');
 
 INSERT INTO doacao (
     id_doacao, id_doador, data_doacao, tipo, descricao,
     valor, quantidade, unidade, situacao
 ) VALUES
-    (1, 1, '2026-01-10', 'FINANCEIRA', 'Contribuicao para consultas', 300.00, NULL, NULL, 'RECEBIDA'),
-    (2, 2, '2026-01-25', 'MATERIAL', 'Racao para caes', NULL, 20.00, 'kg', 'RECEBIDA'),
-    (3, 3, '2026-02-05', 'MATERIAL', 'Racao para gatos', NULL, 30.00, 'kg', 'RECEBIDA'),
-    (4, 4, '2026-02-20', 'MATERIAL', 'Medicamentos veterinarios', NULL, 15.00, 'unidades', 'RECEBIDA'),
-    (5, 5, '2026-03-05', 'FINANCEIRA', 'Apoio aos tratamentos', 500.00, NULL, NULL, 'RECEBIDA'),
-    (6, 1, '2026-04-10', 'MATERIAL', 'Cobertores', NULL, 12.00, 'unidades', 'RECEBIDA'),
-    (7, 2, '2026-05-12', 'FINANCEIRA', 'Campanha mensal', 250.00, NULL, NULL, 'RECEBIDA'),
-    (8, 3, '2026-06-18', 'MATERIAL', 'Produtos de higiene', NULL, 24.00, 'unidades', 'RECEBIDA'),
-    (9, 5, '2026-07-01', 'FINANCEIRA', 'Lancamento duplicado', 100.00, NULL, NULL, 'CANCELADA');
+    (1,
+        1,
+        '2026-01-10',
+        'FINANCEIRA',
+        'Contribuicao para consultas',
+        300.00,
+        NULL,
+        NULL,
+        'RECEBIDA'),
+    (2,
+        2,
+        '2026-01-25',
+        'MATERIAL',
+        'Racao para caes',
+        NULL,
+        20.00,
+        'kg',
+        'RECEBIDA'),
+    (3,
+        3,
+        '2026-02-05',
+        'MATERIAL',
+        'Racao para gatos',
+        NULL,
+        30.00,
+        'kg',
+        'RECEBIDA'),
+    (4,
+        4,
+        '2026-02-20',
+        'MATERIAL',
+        'Medicamentos veterinarios',
+        NULL,
+        15.00,
+        'unidades',
+        'RECEBIDA'),
+    (5,
+        5,
+        '2026-03-05',
+        'FINANCEIRA',
+        'Apoio aos tratamentos',
+        500.00,
+        NULL,
+        NULL,
+        'RECEBIDA'),
+    (6,
+        1,
+        '2026-04-10',
+        'MATERIAL',
+        'Cobertores',
+        NULL,
+        12.00,
+        'unidades',
+        'RECEBIDA'),
+    (7,
+        2,
+        '2026-05-12',
+        'FINANCEIRA',
+        'Campanha mensal',
+        250.00,
+        NULL,
+        NULL,
+        'RECEBIDA'),
+    (8,
+        3,
+        '2026-06-18',
+        'MATERIAL',
+        'Produtos de higiene',
+        NULL,
+        24.00,
+        'unidades',
+        'RECEBIDA'),
+    (9,
+        5,
+        '2026-07-01',
+        'FINANCEIRA',
+        'Lancamento duplicado',
+        100.00,
+        NULL,
+        NULL,
+        'CANCELADA');
 
 -- 3. CONSULTAS SELECT
 
@@ -349,57 +885,70 @@ DELETE FROM doacao
 WHERE id_doacao = 9
   AND situacao = 'CANCELADA';
 
-SELECT id_doacao, id_doador, data_doacao, situacao
+SELECT id_doacao, descricao, situacao
 FROM doacao
 ORDER BY id_doacao;
 
 -- 6. STORED PROCEDURE
--- Conclui uma adocao e atualiza o animal na mesma transacao.
-
+-- Conclui o processo aprovado e atualiza o animal atomicamente.
 DELIMITER $$
-
 CREATE PROCEDURE sp_concluir_adocao (
-    IN p_id_animal INT,
-    IN p_id_adotante INT,
+    IN p_id_adocao INT,
     IN p_data_adocao DATE
 )
 BEGIN
-    DECLARE v_animal_disponivel INT DEFAULT 0;
-
-    SELECT COUNT(*)
-      INTO v_animal_disponivel
-      FROM animal
-     WHERE id_animal = p_id_animal
-       AND situacao = 'DISPONIVEL_ADOCAO';
-
-    IF v_animal_disponivel = 0 THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Animal inexistente ou indisponivel para adocao';
-    END IF;
+    DECLARE v_animal INT DEFAULT NULL;
+    DECLARE v_adotante INT;
+    DECLARE v_situacao_animal VARCHAR(25);
+    DECLARE v_situacao_adocao VARCHAR(12);
+    DECLARE v_situacao_adotante VARCHAR(10);
+    DECLARE v_solicitacao DATE;
+    DECLARE v_analise DATE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
     START TRANSACTION;
+    SELECT id_animal INTO v_animal FROM adocao
+    WHERE id_adocao = p_id_adocao;
+    IF v_animal IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Processo de adocao inexistente';
+    END IF;
 
-    INSERT INTO adocao (
-        id_animal, id_adotante, data_solicitacao,
-        data_analise, data_adocao, situacao, observacoes
-    ) VALUES (
-        p_id_animal, p_id_adotante, p_data_adocao,
-        p_data_adocao, p_data_adocao, 'CONCLUIDA',
-        'Adocao registrada pela stored procedure'
-    );
+    -- Todos os concluintes bloqueiam primeiro o mesmo animal.
+    SELECT situacao INTO v_situacao_animal FROM animal
+    WHERE id_animal = v_animal FOR UPDATE;
+    SELECT id_adotante, situacao, data_solicitacao, data_analise
+    INTO v_adotante, v_situacao_adocao, v_solicitacao, v_analise
+    FROM adocao WHERE id_adocao = p_id_adocao FOR UPDATE;
+    SELECT situacao INTO v_situacao_adotante FROM adotante
+    WHERE id_adotante = v_adotante FOR UPDATE;
 
-    UPDATE animal
-       SET situacao = 'ADOTADO'
-     WHERE id_animal = p_id_animal;
+    IF v_situacao_adocao <> 'APROVADA'
+       OR v_situacao_animal <> 'EM_PROCESSO_ADOCAO'
+       OR v_situacao_adotante <> 'ATIVO' THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Processo, animal ou adotante inapto';
+    END IF;
+    IF p_data_adocao IS NULL OR p_data_adocao < v_solicitacao
+       OR (v_analise IS NOT NULL AND p_data_adocao < v_analise) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Data de adocao invalida';
+    END IF;
 
+    UPDATE adocao SET situacao = 'CONCLUIDA',
+        data_adocao = p_data_adocao WHERE id_adocao = p_id_adocao;
+    UPDATE animal SET situacao = 'ADOTADO'
+    WHERE id_animal = v_animal;
     COMMIT;
 END$$
-
 DELIMITER ;
 
--- Exemplo de uso com a animal Amora e a adotante Joana:
--- CALL sp_concluir_adocao(6, 5, '2026-11-20');
-
--- Conferencia apos executar o exemplo:
--- SELECT id_animal, nome, situacao FROM animal WHERE id_animal = 6;
--- SELECT * FROM adocao WHERE id_animal = 6 ORDER BY id_adocao DESC;
+CALL sp_concluir_adocao(5, '2026-09-20');
+SELECT ad.id_adocao, a.nome AS animal, ad.situacao AS processo,
+       ad.data_adocao, a.situacao AS situacao_animal
+FROM adocao ad JOIN animal a ON a.id_animal = ad.id_animal
+WHERE ad.id_adocao = 5;

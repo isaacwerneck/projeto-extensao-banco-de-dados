@@ -1,0 +1,22 @@
+graph G { graph [rankdir=LR, bgcolor="white", nodesep=.3, ranksep=.6, pad=.15];
+node [fontname="Arial", fontsize=13]; edge [fontname="Arial", fontsize=12];
+doador [shape=box, label="DOADOR"];
+doador_0 [shape=ellipse, fontsize=11, label=<<U>id_doador</U>>]; doador -- doador_0;
+doador_1 [shape=ellipse, fontsize=11, label="nome"]; doador -- doador_1;
+doador_2 [shape=ellipse, fontsize=11, label="tipo_pessoa"]; doador -- doador_2;
+doador_3 [shape=ellipse, fontsize=11, label="documento"]; doador -- doador_3;
+doador_4 [shape=ellipse, fontsize=11, label="telefone"]; doador -- doador_4;
+doador_5 [shape=ellipse, fontsize=11, label="email"]; doador -- doador_5;
+doador_6 [shape=ellipse, fontsize=11, label="cidade"]; doador -- doador_6;
+doador_7 [shape=ellipse, fontsize=11, label="data_cadastro"]; doador -- doador_7;
+doacao [shape=box, label="DOACAO"];
+doacao_0 [shape=ellipse, fontsize=11, label=<<U>id_doacao</U>>]; doacao -- doacao_0;
+doacao_1 [shape=ellipse, fontsize=11, label="data_doacao"]; doacao -- doacao_1;
+doacao_2 [shape=ellipse, fontsize=11, label="tipo"]; doacao -- doacao_2;
+doacao_3 [shape=ellipse, fontsize=11, label="descricao"]; doacao -- doacao_3;
+doacao_4 [shape=ellipse, fontsize=11, label="valor"]; doacao -- doacao_4;
+doacao_5 [shape=ellipse, fontsize=11, label="quantidade"]; doacao -- doacao_5;
+doacao_6 [shape=ellipse, fontsize=11, label="unidade"]; doacao -- doacao_6;
+doacao_7 [shape=ellipse, fontsize=11, label="situacao"]; doacao -- doacao_7;
+rel8 [shape=diamond, label="contribui", fontsize=11]; doador -- rel8 [label="(0,N)"]; rel8 -- doacao [label="(1,1)"];
+}

@@ -1,0 +1,36 @@
+especie	quantidade_animais
+Cao	4
+Gato	4
+Calopsita	1
+Coelho	1
+Hamster	0
+animal	veterinario	quantidade_tratamentos	total_gasto
+Thor	Rafael Nunes	2	630.00
+Mel	Juliana Reis	1	320.00
+Frida	Juliana Reis	1	310.00
+Sol	Larissa Gomes	1	275.00
+Bob	Pedro Martins	1	260.00
+Nina	Juliana Reis	1	210.00
+Lua	Mariana Costa	2	205.00
+Amora	Mariana Costa	1	150.00
+Pipoca	Larissa Gomes	1	90.00
+Chico	Pedro Martins	1	80.00
+animal	total_tratamentos
+Thor	630.00
+Mel	320.00
+Frida	310.00
+Sol	275.00
+Bob	260.00
+id_voluntario	nome	funcao
+1	Ana Lima	Coordenacao de resgates
+id_doacao	descricao	situacao
+1	Contribuicao para consultas	RECEBIDA
+2	Racao para caes	RECEBIDA
+3	Racao para gatos	RECEBIDA
+4	Medicamentos veterinarios	RECEBIDA
+5	Apoio aos tratamentos	RECEBIDA
+6	Cobertores	RECEBIDA
+7	Campanha mensal	RECEBIDA
+8	Produtos de higiene	RECEBIDA
+id_adocao	animal	processo	data_adocao	situacao_animal
+5	Bob	CONCLUIDA	2026-09-20	ADOTADO

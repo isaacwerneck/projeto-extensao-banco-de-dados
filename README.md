@@ -1,36 +1,38 @@
-# Projeto Patas na Rua
+# Patas na Rua — Banco de dados
 
-Projeto individual da disciplina Projeto de Extensão em Banco de Dados.
+Projeto individual de Isaac Azevedo Werneck, matrícula 2024101179. Cenário acadêmico fictício de proteção animal, com dez entidades.
 
-- Aluno: Isaac Azevedo Werneck
-- Matrícula: 2024101179
-- SGBD: MySQL 8.0
-- Entrega: 11 de dezembro de 2026
+## Entrega
 
-## Objetivo
+- `entrega/Projeto_Patas_na_Rua_Isaac_Azevedo_Werneck.pdf`: relatório final para o AVA, convertido do Word preenchido no modelo do professor.
+- O `.docx` na mesma pasta é a versão editável.
+- `sql/patas_na_rua.sql`: criação do banco e tabelas, carga, três consultas, UPDATE, DELETE, procedure e chamada demonstrativa.
+- `diagramas/`: DER em notação ER e modelo lógico completos, divididos em quatro recortes; PNG para leitura, SVG e DOT para edição.
+- `evidencias/`: resultados reais e testes de integridade.
 
-Modelar e implementar um banco de dados para a ONG fictícia Patas na Rua, que atua no resgate, tratamento e adoção de animais e no recebimento de doações.
+O PDF é o documento solicitado; o link do GitHub é complementar. O material fornecido não exige apresentação. Prazo: **11/12/2026**.
 
-## Arquivos
+## Executar
 
-- `docs/projeto.md`: minimundo, regras de negócio, modelos conceitual e lógico e orientações.
-- `diagramas/`: diagramas conceitual e lógico.
-- `sql/patas_na_rua.sql`: criação, dados, consultas, CRUD e stored procedure.
-- `scripts/validar_sql.py`: verifica o esquema, os dados e as consultas usando apenas a biblioteca padrão do Python.
-- `entrega/`: documento Word editável e PDF final.
+Use MySQL 8.0.16 ou superior (validado no MySQL 8.4.8), com tabelas InnoDB. Abra o arquivo SQL no MySQL Workbench e execute por inteiro, ou no cliente mysql:
 
-## Execução
-
-No MySQL 8.0:
-
-```bash
-mysql -u root -p < sql/patas_na_rua.sql
+```sql
+SOURCE C:/caminho/do/projeto/sql/patas_na_rua.sql;
 ```
 
-Validação local sem MySQL:
+É necessário usuário com permissão de criação de banco, tabelas e procedures. Execute uma vez em uma instância que ainda não tenha a base `patas_na_rua`; o script não apaga nem sobrescreve uma base existente. `DELIMITER` é uma diretiva do cliente mysql/Workbench. Ao final, Bob estará adotado e haverá oito doações após a remoção do lançamento duplicado cancelado. Todas as tabelas continuam com pelo menos cinco registros.
 
-```bash
-python scripts/validar_sql.py
+## Reproduzir a validação
+
+Python 3 e cliente `mysql` no PATH, sem bibliotecas extras:
+
+```powershell
+$env:MYSQL_PWD = 'sua_senha_local'
+python scripts/validar_mysql.py --host 127.0.0.1 --port 3306 --user root
+Remove-Item Env:MYSQL_PWD
 ```
 
-O validador executa a parte portável do script em um banco SQLite temporário, confirma pelo menos cinco registros em cada tabela e testa as três consultas avaliadas. A stored procedure permanece específica do MySQL.
+Se o cliente não estiver no PATH, informe `--mysql "C:/caminho/mysql.exe"`.
+**Atenção:** o teste apaga e recria somente a base `patas_na_rua_validacao`. Não a use para dados reais. A base principal não é alterada. O usuário de teste precisa também de permissão para criar trigger (usada apenas no teste de rollback). A senha não é armazenada no repositório.
+
+Os testes conferem contagens, consultas reais, CRUD, conclusão de adoção, dados inválidos, rollback e duas conclusões concorrentes. Há limitações de escopo explicitadas no relatório: não há aplicativo nem validação cadastral de documentos e nenhum contato com ONG real foi alegado.

@@ -1,0 +1,238 @@
+{
+  "versao": "8.4.8",
+  "registros": {
+    "especie": 5,
+    "raca": 10,
+    "voluntario": 5,
+    "animal": 10,
+    "veterinario": 5,
+    "tratamento": 12,
+    "adotante": 5,
+    "adocao": 6,
+    "doador": 5,
+    "doacao": 8
+  },
+  "consultas": [
+    {
+      "colunas": [
+        "especie",
+        "quantidade_animais"
+      ],
+      "linhas": [
+        [
+          "Cao",
+          "4"
+        ],
+        [
+          "Gato",
+          "4"
+        ],
+        [
+          "Calopsita",
+          "1"
+        ],
+        [
+          "Coelho",
+          "1"
+        ],
+        [
+          "Hamster",
+          "0"
+        ]
+      ]
+    },
+    {
+      "colunas": [
+        "animal",
+        "veterinario",
+        "quantidade_tratamentos",
+        "total_gasto"
+      ],
+      "linhas": [
+        [
+          "Thor",
+          "Rafael Nunes",
+          "2",
+          "630.00"
+        ],
+        [
+          "Mel",
+          "Juliana Reis",
+          "1",
+          "320.00"
+        ],
+        [
+          "Frida",
+          "Juliana Reis",
+          "1",
+          "310.00"
+        ],
+        [
+          "Sol",
+          "Larissa Gomes",
+          "1",
+          "275.00"
+        ],
+        [
+          "Bob",
+          "Pedro Martins",
+          "1",
+          "260.00"
+        ],
+        [
+          "Nina",
+          "Juliana Reis",
+          "1",
+          "210.00"
+        ],
+        [
+          "Lua",
+          "Mariana Costa",
+          "2",
+          "205.00"
+        ],
+        [
+          "Amora",
+          "Mariana Costa",
+          "1",
+          "150.00"
+        ],
+        [
+          "Pipoca",
+          "Larissa Gomes",
+          "1",
+          "90.00"
+        ],
+        [
+          "Chico",
+          "Pedro Martins",
+          "1",
+          "80.00"
+        ]
+      ]
+    },
+    {
+      "colunas": [
+        "animal",
+        "total_tratamentos"
+      ],
+      "linhas": [
+        [
+          "Thor",
+          "630.00"
+        ],
+        [
+          "Mel",
+          "320.00"
+        ],
+        [
+          "Frida",
+          "310.00"
+        ],
+        [
+          "Sol",
+          "275.00"
+        ],
+        [
+          "Bob",
+          "260.00"
+        ]
+      ]
+    }
+  ],
+  "update": {
+    "colunas": [
+      "id_voluntario",
+      "nome",
+      "funcao"
+    ],
+    "linhas": [
+      [
+        "1",
+        "Ana Lima",
+        "Coordenacao de resgates"
+      ]
+    ]
+  },
+  "delete": {
+    "colunas": [
+      "id_doacao",
+      "descricao",
+      "situacao"
+    ],
+    "linhas": [
+      [
+        "1",
+        "Contribuicao para consultas",
+        "RECEBIDA"
+      ],
+      [
+        "2",
+        "Racao para caes",
+        "RECEBIDA"
+      ],
+      [
+        "3",
+        "Racao para gatos",
+        "RECEBIDA"
+      ],
+      [
+        "4",
+        "Medicamentos veterinarios",
+        "RECEBIDA"
+      ],
+      [
+        "5",
+        "Apoio aos tratamentos",
+        "RECEBIDA"
+      ],
+      [
+        "6",
+        "Cobertores",
+        "RECEBIDA"
+      ],
+      [
+        "7",
+        "Campanha mensal",
+        "RECEBIDA"
+      ],
+      [
+        "8",
+        "Produtos de higiene",
+        "RECEBIDA"
+      ]
+    ]
+  },
+  "procedure": {
+    "colunas": [
+      "id_adocao",
+      "nome",
+      "situacao",
+      "data_adocao",
+      "situacao"
+    ],
+    "linhas": [
+      [
+        "5",
+        "Bob",
+        "CONCLUIDA",
+        "2026-09-20",
+        "ADOTADO"
+      ]
+    ]
+  },
+  "entradas_invalidas_bloqueadas": {
+    "raça de outra espécie": "ERROR 1452 (23000) at line 1: Cannot add or update a child row: a foreign key constraint fails (`patas_na_rua_validacao`.`animal`, CONSTRAINT `fk_animal_raca` FOREIGN KEY (`id_raca`, `id_especie`) REFERENCES `raca` (`id_raca`, `id_especie`))",
+    "duas adoções ativas": "ERROR 1062 (23000) at line 1: Duplicate entry '4' for key 'adocao.uq_adocao_ativa'",
+    "doação financeira sem valor": "ERROR 3819 (HY000) at line 1: Check constraint 'ck_doacao_conteudo' is violated.",
+    "doação material sem quantidade": "ERROR 3819 (HY000) at line 1: Check constraint 'ck_doacao_conteudo' is violated.",
+    "custo negativo": "ERROR 3819 (HY000) at line 1: Check constraint 'ck_tratamento_valor' is violated.",
+    "chave estrangeira inexistente": "ERROR 1452 (23000) at line 1: Cannot add or update a child row: a foreign key constraint fails (`patas_na_rua_validacao`.`tratamento`, CONSTRAINT `fk_tratamento_animal` FOREIGN KEY (`id_animal`) REFERENCES `animal` (`id_animal`))",
+    "conclusão duplicada": "ERROR 1644 (45000) at line 1: Processo, animal ou adotante inapto",
+    "processo não aprovado": "ERROR 1644 (45000) at line 1: Processo, animal ou adotante inapto",
+    "processo inexistente": "ERROR 1644 (45000) at line 1: Processo de adocao inexistente",
+    "data anterior à análise": "ERROR 1644 (45000) at line 1: Data de adocao invalida"
+  },
+  "rollback": "confirmado após falha controlada",
+  "concorrencia": "uma conclusão aceita e uma rejeitada"
+}
